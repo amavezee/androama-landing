@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Your Origin</title>
+</head>
+<body>
+    <h1>Your Current Origin:</h1>
+    <div id="origin" style="font-size: 24px; font-weight: bold; color: blue;"></div>
+    <script>
+        document.getElementById('origin').textContent = window.location.origin;
+        console.log('Your origin is:', window.location.origin);
+        console.log('Full URL is:', window.location.href);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google OAuth Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #357ae8;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Google OAuth Diagnostic Tool</h1>
+    
+    <div class="section">
+        <h2>Current Environment</h2>
+        <div id="env-info"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Test Google Sign-In Button</h2>
+        <div id="google-signin-button" style="width: 100%; display: flex; justify-content: center; margin: 20px 0;"></div>
+        <div id="test-results"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Diagnostic Information</h2>
+        <div id="diagnostics"></div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        const CLIENT_ID = '545048780620-dtjvdi1q3gbeemeiutjki18mgr1st64k.apps.googleusercontent.com';
+        
+        // Display environment info
+        function displayEnvInfo() {
+            const envDiv = document.getElementById('env-info');
+            const origin = window.location.origin;
+            const fullUrl = window.location.href;
+            
+            envDiv.innerHTML = `
+                <div class="info">
+                    <strong>Origin:</strong> ${origin}<br>
+                    <strong>Full URL:</strong> ${fullUrl}<br>
+                    <strong>Client ID:</strong> ${CLIENT_ID}<br>
+                    <strong>Expected Origin:</strong> http://localhost:5173<br>
+                    <strong>Origin Match:</strong> <span class="${origin === 'http://localhost:5173' ? 'success' : 'error'}">${origin === 'http://localhost:5173' ? '✅ Match' : '❌ Mismatch'}</span>
+                </div>
+            `;
+        }
+        
+        // Initialize Google Sign-In
+        function initGoogleSignIn() {
+            if (!window.google || !window.google.accounts) {
+                setTimeout(initGoogleSignIn, 100);
+                return;
+            }
+            
+            console.log('Initializing Google Sign-In...');
+            console.log('Origin:', window.location.origin);
+            console.log('Client ID:', CLIENT_ID);
+            
+            try {
+                window.google.accounts.id.initialize({
+                    client_id: CLIENT_ID,
+                    callback: (response) => {
+                        console.log('✅ Google Sign-In callback received!');
+                        document.getElementById('test-results').innerHTML = `
+                            <div class="success">
+                                ✅ SUCCESS! Google Sign-In is working!<br>
+                                Token received: ${response.credential.substring(0, 50)}...
+                            </div>
+                        `;
+                    },
+                });
+                
+                // Render button
+                window.google.accounts.id.renderButton(
+                    document.getElementById('google-signin-button'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'signin_with',
+                        type: 'standard'
+                    }
+                );
+                
+                console.log('✅ Google Sign-In button rendered');
+                
+                // Monitor for errors
+                setTimeout(() => {
+                    const iframe = document.querySelector('iframe');
+                    if (iframe) {
+                        console.log('Iframe found:', iframe.src);
+                        iframe.addEventListener('load', () => {
+                            console.log('Iframe loaded');
+                        });
+                        iframe.addEventListener('error', (e) => {
+                            console.error('Iframe error:', e);
+                            document.getElementById('test-results').innerHTML = `
+                                <div class="error">
+                                    ❌ Iframe failed to load. Check Network tab for 403 error.
+                                </div>
+                            `;
+                        });
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error initializing Google Sign-In:', error);
+                document.getElementById('test-results').innerHTML = `
+                    <div class="error">
+                        ❌ Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Display diagnostics
+        function displayDiagnostics() {
+            const diagDiv = document.getElementById('diagnostics');
+            const origin = window.location.origin;
+            
+            diagDiv.innerHTML = `
+                <div class="info">
+                    <h3>What to Check in Google Cloud Console:</h3>
+                    <ol>
+                        <li><strong>OAuth Client Settings:</strong>
+                            <ul>
+                                <li>Go to: <a href="https://console.cloud.google.com/apis/credentials" target="_blank">APIs & Services > Credentials</a></li>
+                                <li>Click on your OAuth 2.0 Client ID</li>
+                                <li>Verify <strong>Authorized JavaScript origins</strong> contains exactly: <code>http://localhost:5173</code></li>
+                                <li>Verify <strong>Authorized redirect URIs</strong> contains: <code>http://localhost:5173/login</code></li>
+                                <li>Click <strong>SAVE</strong></li>
+                            </ul>
+                        </li>
+                        <li><strong>OAuth Consent Screen:</strong>
+                            <ul>
+                                <li>Go to: <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank">APIs & Services > OAuth consent screen</a></li>
+                                <li>Verify status is <strong>"In production"</strong> (not "Testing")</li>
+                                <li>If "Testing", click <strong>PUBLISH APP</strong></li>
+                            </ul>
+                        </li>
+                        <li><strong>Project Match (CRITICAL):</strong>
+                            <ul>
+                                <li>OAuth Client and Consent Screen MUST be in the SAME project</li>
+                                <li>Check the project dropdown at the top of both pages</li>
+                                <li>They must match exactly!</li>
+                            </ul>
+                        </li>
+                        <li><strong>Application Type:</strong>
+                            <ul>
+                                <li>OAuth Client must be type: <strong>"Web application"</strong></li>
+                                <li>NOT "Desktop app" or "Mobile app"</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+                <div class="info">
+                    <h3>Current Request Details:</h3>
+                    <pre>Origin: ${origin}
+Client ID: ${CLIENT_ID}
+Expected: http://localhost:5173
+Match: ${origin === 'http://localhost:5173' ? 'YES ✅' : 'NO ❌'}</pre>
+                </div>
+            `;
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            displayEnvInfo();
+            displayDiagnostics();
+            initGoogleSignIn();
+        });
+    </script>
+</body>
+</html>
+

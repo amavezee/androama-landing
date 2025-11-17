@@ -1,0 +1,241 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import timedelta
+import os
+from app.database import get_db
+from app.models import User
+from app.schemas import UserCreate, UserResponse, Token, UserLogin
+from app.auth import (
+    authenticate_user,
+    create_access_token,
+    get_password_hash,
+    get_user_by_email,
+    get_current_active_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
+from app.oauth import google_oauth_login
+from datetime import datetime
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+class GoogleTokenRequest(BaseModel):
+    token: str
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user with robust validation"""
+    try:
+        # Validate email format (Pydantic does this, but double-check)
+        if not user_data.email or "@" not in user_data.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid email format"
+            )
+        
+        # Check if user already exists
+        existing_user = get_user_by_email(db, user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Check if username is taken
+        if user_data.username:
+            existing_username = db.query(User).filter(User.username == user_data.username).first()
+            if existing_username:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Username already taken"
+                )
+        
+        # Validate password strength
+        if len(user_data.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user_data.password)
+        new_user = User(
+            email=user_data.email.lower().strip(),  # Normalize email
+            password_hash=hashed_password,
+            username=user_data.username.strip() if user_data.username else None,
+            edition=user_data.edition or "monitor",
+            subscription_status="none",
+            subscription_tier="free",
+            is_active=True,
+            email_verified=False
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return new_user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
+
+@router.post("/login", response_model=Token)
+async def login(credentials: UserLogin, db: Session = Depends(get_db)):
+    """Login and get access token with robust error handling"""
+    try:
+        # Normalize email
+        email = credentials.email.lower().strip()
+        
+        # Check if user has OAuth account (no password)
+        user = get_user_by_email(db, email)
+        if user and user.oauth_provider and not user.password_hash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Please sign in with {user.oauth_provider.title()}"
+            )
+        
+        # Authenticate user
+        user = authenticate_user(db, email, credentials.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Check if account is active
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated"
+            )
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.email},
+            expires_delta=access_token_expires
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+    """Get current user information"""
+    return current_user
+
+@router.post("/google", response_model=Token)
+async def google_login(request: GoogleTokenRequest, db: Session = Depends(get_db)):
+    """Login with Google OAuth token"""
+    try:
+        return await google_oauth_login(db, request.token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google OAuth error: {str(e)}"
+        )
+
+@router.post("/google/callback")
+async def google_oauth_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Handle OAuth 2.0 redirect callback - exchange code for token"""
+    import httpx
+    from app.oauth import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+    
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google OAuth not configured"
+        )
+    
+    try:
+        # Exchange authorization code for tokens
+        # The redirect_uri MUST match exactly what was used in the initial request
+        redirect_uri = f"{os.getenv('FRONTEND_URL', 'http://localhost:5173')}/login"
+        
+        print(f"🔍 Exchanging OAuth code:")
+        print(f"  - Client ID: {GOOGLE_CLIENT_ID}")
+        print(f"  - Client Secret: {'*' * 10 if GOOGLE_CLIENT_SECRET else 'MISSING'}")
+        print(f"  - Redirect URI: {redirect_uri}")
+        print(f"  - Code: {code[:20]}...")
+        
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+                timeout=10.0
+            )
+            
+            print(f"🔍 Google token response status: {token_response.status_code}")
+            if token_response.status_code != 200:
+                error_text = token_response.text
+                print(f"❌ Google token exchange error: {error_text}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Failed to exchange authorization code: {error_text}"
+                )
+            
+            token_data = token_response.json()
+            id_token = token_data.get("id_token")
+            
+            if not id_token:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No ID token received from Google"
+                )
+            
+            # Use existing google_oauth_login function with the ID token
+            return await google_oauth_login(db, id_token)
+            
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Error communicating with Google: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google OAuth callback error: {str(e)}"
+        )
+
+@router.post("/logout")
+async def logout(current_user: User = Depends(get_current_active_user)):
+    """Logout (client should remove token)"""
+    return {"message": "Successfully logged out"}
+
