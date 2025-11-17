@@ -109,7 +109,10 @@ Database is initialized automatically with:
 
 ## Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive VPS deployment instructions.
+- **[SETUP_COMPLETE.md](./SETUP_COMPLETE.md)** - Complete step-by-step setup guide (PostgreSQL, OAuth, VPS deployment)
+- **[QUICK_START.md](./QUICK_START.md)** - Quick reference for deployment
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Detailed VPS deployment instructions
+- **[backend/README.md](./backend/README.md)** - Backend-specific setup and API documentation
 
 ## Project Structure
 
