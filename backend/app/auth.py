@@ -176,12 +176,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # The wrapper will truncate again, but this ensures we're safe
     try:
         return pwd_context.verify(plain_password, hashed_password)
-    except RuntimeError as e:
-        # Handle "wraparound hash" error - this is a passlib/bcrypt compatibility issue
+    except (RuntimeError, ValueError, Exception) as e:
+        # Handle passlib/bcrypt compatibility errors - fallback to direct bcrypt
         error_msg = str(e).lower()
-        if "wraparound" in error_msg or "backend failed" in error_msg:
-            logger.warning(f"Passlib backend error, trying direct bcrypt verification: {e}")
-            # Fallback: try direct bcrypt verification
+        if any(keyword in error_msg for keyword in ["wraparound", "backend failed", "incorrectly rejected", "$2$ hash"]):
+            logger.warning(f"Passlib error detected ({type(e).__name__}): {e}, falling back to direct bcrypt verification")
+            # Fallback: try direct bcrypt verification (bypasses passlib entirely)
             try:
                 import bcrypt as _bcrypt_direct
                 # Convert hash to bytes if needed
@@ -189,22 +189,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
                     hashed_bytes = hashed_password.encode('utf-8')
                 else:
                     hashed_bytes = hashed_password
-                # Verify directly with bcrypt
+                # Verify directly with bcrypt (our monkey-patch will truncate automatically)
                 password_bytes = plain_password.encode('utf-8')
+                # Our monkey-patch already truncates, but ensure it's <= 70 bytes
                 if len(password_bytes) > 70:
                     password_bytes = password_bytes[:70]
-                return _bcrypt_direct.checkpw(password_bytes, hashed_bytes)
+                result = _bcrypt_direct.checkpw(password_bytes, hashed_bytes)
+                logger.info(f"Direct bcrypt verification {'succeeded' if result else 'failed'}")
+                return result
             except Exception as direct_error:
                 logger.error(f"Direct bcrypt verification also failed: {direct_error}")
-                raise e  # Re-raise original error
-        raise
-    except Exception as e:
-        # Log other errors for debugging
+                import traceback
+                logger.error(f"Direct bcrypt traceback: {traceback.format_exc()}")
+                # Re-raise original passlib error
+                raise e
+        # For other errors, log and re-raise
         logger.error(f"Password verification error: {e}, hash format: {hashed_password[:20] if hashed_password else 'None'}...")
         logger.error(f"Error type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        # Re-raise to maintain original behavior
         raise
 
 def get_password_hash(password: str) -> str:
