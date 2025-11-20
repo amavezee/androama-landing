@@ -22,6 +22,7 @@ function AppContent() {
   const location = useLocation();
   const [welcomeMessage, setWelcomeMessage] = useState<string | null>(null);
   const [, forceUpdate] = useState({});
+  const [isValidatingToken, setIsValidatingToken] = useState(false);
 
   // Check for welcome message
   useEffect(() => {
@@ -51,6 +52,7 @@ function AppContent() {
     const betaToken = urlParams.get('betaToken');
     
     if (betaToken && sessionStorage.getItem('beta_access_granted') !== 'true') {
+      setIsValidatingToken(true);
       // Validate token with backend
       const validateToken = async () => {
         try {
@@ -72,21 +74,39 @@ function AppContent() {
             const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
             window.history.replaceState({}, '', newUrl);
             // Force re-render
+            setIsValidatingToken(false);
             forceUpdate({});
+          } else {
+            setIsValidatingToken(false);
           }
         } catch (error) {
           console.error('Failed to validate beta token:', error);
+          setIsValidatingToken(false);
         }
       };
       
       validateToken();
+    } else {
+      setIsValidatingToken(false);
     }
   }, [location.search]);
 
   // Show beta gate if no access (except on beta-gate page itself)
-  // Use a more reliable check that updates immediately
+  // Wait for token validation to complete first
   const hasAccess = sessionStorage.getItem('beta_access_granted') === 'true';
   const currentPath = location.pathname;
+  
+  // Show loading while validating token
+  if (isValidatingToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Validating access...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (!hasAccess && currentPath !== '/beta-gate') {
     return <BetaGate />;
