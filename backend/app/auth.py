@@ -28,21 +28,45 @@ class TruncatingCryptContext:
     
     def hash(self, password: str) -> str:
         """Hash a password, truncating to 70 bytes first to avoid passlib errors"""
-        # Truncate BEFORE passlib sees it
+        # CRITICAL: Truncate BEFORE passlib sees it - this is the only way to prevent the error
+        if not isinstance(password, str):
+            password = str(password)
         password_bytes = password.encode('utf-8')
         if len(password_bytes) > 70:
             password_bytes = password_bytes[:70]
             password = password_bytes.decode('utf-8', errors='ignore')
-        return self._base.hash(password)
+        try:
+            return self._base.hash(password)
+        except (ValueError, Exception) as e:
+            # If still fails, truncate even more aggressively
+            error_str = str(e).lower()
+            if "72" in error_str or "byte" in error_str or "truncate" in error_str:
+                # Last resort: truncate to 65 bytes
+                password_bytes = password.encode('utf-8')[:65]
+                password = password_bytes.decode('utf-8', errors='ignore')
+                return self._base.hash(password)
+            raise
     
     def verify(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password, truncating to 70 bytes first to avoid passlib errors"""
-        # Truncate BEFORE passlib sees it
+        # CRITICAL: Truncate BEFORE passlib sees it - this is the only way to prevent the error
+        if not isinstance(plain_password, str):
+            plain_password = str(plain_password)
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 70:
             password_bytes = password_bytes[:70]
             plain_password = password_bytes.decode('utf-8', errors='ignore')
-        return self._base.verify(plain_password, hashed_password)
+        try:
+            return self._base.verify(plain_password, hashed_password)
+        except (ValueError, Exception) as e:
+            # If still fails, truncate even more aggressively
+            error_str = str(e).lower()
+            if "72" in error_str or "byte" in error_str or "truncate" in error_str:
+                # Last resort: truncate to 65 bytes
+                password_bytes = plain_password.encode('utf-8')[:65]
+                plain_password = password_bytes.decode('utf-8', errors='ignore')
+                return self._base.verify(plain_password, hashed_password)
+            raise
 
 # Use the truncating wrapper
 pwd_context = TruncatingCryptContext(_base_pwd_context)
