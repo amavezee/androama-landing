@@ -45,13 +45,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     # Bcrypt has a 72-byte limit, truncate if necessary
     plain_password = _truncate_password(plain_password)
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except ValueError as e:
+        # If bcrypt still complains about length, truncate more aggressively
+        if "72 bytes" in str(e) or "truncate" in str(e).lower():
+            # Truncate to 70 bytes to be safe
+            password_bytes = plain_password.encode('utf-8')[:70]
+            plain_password = password_bytes.decode('utf-8', errors='ignore')
+            return pwd_context.verify(plain_password, hashed_password)
+        raise
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
     # Bcrypt has a 72-byte limit, truncate if necessary
     password = _truncate_password(password)
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except ValueError as e:
+        # If bcrypt still complains about length, truncate more aggressively
+        if "72 bytes" in str(e) or "truncate" in str(e).lower():
+            # Truncate to 70 bytes to be safe
+            password_bytes = password.encode('utf-8')[:70]
+            password = password_bytes.decode('utf-8', errors='ignore')
+            return pwd_context.hash(password)
+        raise
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create a JWT access token"""
