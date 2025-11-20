@@ -138,8 +138,9 @@ function AppContent() {
             </span>
           </Link>
           
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Navigation Links - Positioned to the right */}
+          <div className="flex-1" /> {/* Spacer to push nav to the right */}
+          <nav className="hidden md:flex items-center gap-8 mr-8">
             <a 
               href="/#download" 
               className="text-gray-300 hover:text-white transition-all duration-300 font-sans text-sm font-semibold uppercase tracking-wider relative group"

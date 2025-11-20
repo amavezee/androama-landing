@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^5.4.0",
+    "@stripe/stripe-js": "^8.5.2",
     "@supabase/supabase-js": "^2.57.4",
     "@types/three": "^0.180.0",
     "animejs": "^4.2.2",

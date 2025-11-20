@@ -222,45 +222,37 @@ function Home() {
         'Camera live view',
         'Snapshots & screenshots',
         'Device control & monitoring',
+        'Battery status & usage metrics',
+        'App management & installation',
+        'Community hub for user engagement',
       ],
     },
     {
-      phase: 'Q1 2025',
+      phase: 'In Development',
       title: 'Enhanced Features',
       status: 'In Development',
       items: [
-        'Improved UI/UX with dark mode',
-        'Multi-device dashboard',
-        'Advanced parental controls',
+        'Improved UI/UX refinements',
+        'Multi-device dashboard enhancements',
+        'Advanced notification forwarding',
         'Call log integration',
         'Location tracking',
         'Enhanced automation tools',
+        'Better device connection stability',
+        'OTA update system improvements',
       ],
     },
     {
-      phase: 'Q2 2025',
-      title: 'Guardian Hub',
-      status: 'In Development',
+      phase: 'Planned',
+      title: 'Upcoming Features',
+      status: 'Planned',
       items: [
-        'Centralized management platform',
-        'Cloud synchronization',
-        'Team collaboration features',
+        'Cloud synchronization (optional)',
         'Advanced analytics & reporting',
         'Custom plugins & integrations',
         'API access for developers',
-      ],
-    },
-    {
-      phase: 'Q3 2025',
-      title: 'Enterprise Suite',
-      status: 'Planned',
-      items: [
-        'Fleet management at scale',
-        'Role-based access control',
-        'Compliance & audit logs',
-        'Custom branding options',
-        'Dedicated support channels',
-        'SLA guarantees',
+        'Enhanced security features',
+        'Performance optimizations',
       ],
     },
   ];
@@ -571,9 +563,9 @@ function Home() {
                     <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
-                <li><a href="#features" className="hover:text-white transition-colors cursor-pointer">Features</a></li>
-                <li><a href="#roadmap" className="hover:text-white transition-colors cursor-pointer">Roadmap</a></li>
-                <li><a href="#download" className="hover:text-white transition-colors cursor-pointer">Download</a></li>
+                <li><a href="/#features" className="hover:text-white transition-colors cursor-pointer">Features</a></li>
+                <li><a href="/#roadmap" className="hover:text-white transition-colors cursor-pointer">Roadmap</a></li>
+                <li><a href="/#download" className="hover:text-white transition-colors cursor-pointer">Download</a></li>
                 <li><Link to="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
                 <li><Link to="/community" className="hover:text-white transition-colors">Community Hub</Link></li>
               </ul>

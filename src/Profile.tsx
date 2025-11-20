@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
   User, Mail, Shield, Clock, Activity, Key, Edit2, Save, X, 
   CheckCircle, AlertCircle, Eye, EyeOff, Building2, Monitor, Sparkles,
-  Crown, Calendar, Globe
+  Crown, Calendar, Globe, CreditCard
 } from 'lucide-react';
 import { userAPI } from './lib/api';
+import StripeCheckout from './components/StripeCheckout';
 
 const editionIcons: { [key: string]: React.ReactNode } = {
   monitor: <Monitor className="w-5 h-5" />,
@@ -55,6 +56,9 @@ export default function Profile() {
   
   // Messages
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Stripe checkout
+  const [showStripeCheckout, setShowStripeCheckout] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -643,13 +647,11 @@ export default function Profile() {
                     <p className="text-white font-semibold capitalize">{user.subscription_tier}</p>
                     {user.subscription_tier === 'free' && (
                       <button
-                        onClick={() => {
-                          // TODO: Implement upgrade flow
-                          alert('Upgrade functionality coming soon!');
-                        }}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm font-semibold rounded-lg transition-all"
+                        onClick={() => setShowStripeCheckout(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-sm font-semibold rounded-lg transition-all flex items-center gap-2"
                       >
-                        Upgrade
+                        <CreditCard className="w-4 h-4" />
+                        Upgrade to Beta
                       </button>
                     )}
                   </div>
@@ -667,6 +669,48 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Stripe Checkout Modal */}
+      {showStripeCheckout && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Subscribe to Beta License</h2>
+              <button
+                onClick={() => setShowStripeCheckout(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="mb-6 p-4 bg-purple-600/10 border border-purple-600/50 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-2">Beta License - $4.99/month</h3>
+              <ul className="text-sm text-gray-300 space-y-1">
+                <li>• All PRO features unlocked</li>
+                <li>• Early access to new tools</li>
+                <li>• Lifetime status if renewed monthly</li>
+                <li>• Lifetime discount over PRO version</li>
+                <li>• Beta badge on profile</li>
+              </ul>
+            </div>
+
+            <StripeCheckout
+              amount={4.99}
+              description="ANDROAMA Beta License - Monthly Subscription"
+              onSuccess={() => {
+                setShowStripeCheckout(false);
+                setMessage({ type: 'success', text: 'Subscription activated! Please refresh to see changes.' });
+                // Refresh user data
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              }}
+              onCancel={() => setShowStripeCheckout(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

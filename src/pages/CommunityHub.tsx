@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   MessageSquare, Plus, Clock, Heart, MessageCircle, 
   Share2, Bookmark, Search, Pin, Users,
-  ArrowLeft, ThumbsUp, X, Tag, Loader
+  ArrowLeft, ThumbsUp, X, Tag, Loader, Trash2
 } from 'lucide-react';
 import { communityAPI, CommunityPost, CommunityReply } from '../lib/api';
 
@@ -291,36 +291,64 @@ export default function CommunityHub() {
               ))}
             </div>
 
-            <div className="flex items-center gap-6 pt-6 border-t border-gray-800">
-              <button
-                onClick={() => handleToggleLike(selectedPost.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                  selectedPost.user_liked
-                    ? 'bg-purple-600/20 text-purple-400'
-                    : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800'
-                }`}
-              >
-                <Heart className={`w-4 h-4 ${selectedPost.user_liked ? 'fill-current' : ''}`} />
-                <span>{selectedPost.likes_count}</span>
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-gray-400 rounded-lg hover:bg-gray-800 transition-all">
-                <MessageCircle className="w-4 h-4" />
-                <span>{selectedPost.replies_count}</span>
-              </button>
-              <button
-                onClick={() => toggleBookmark(selectedPost.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                  bookmarkedPosts.has(selectedPost.id)
-                    ? 'bg-purple-600/20 text-purple-400'
-                    : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800'
-                }`}
-              >
-                <Bookmark className={`w-4 h-4 ${bookmarkedPosts.has(selectedPost.id) ? 'fill-current' : ''}`} />
-              </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-gray-400 rounded-lg hover:bg-gray-800 transition-all">
-                <Share2 className="w-4 h-4" />
-                Share
-              </button>
+            <div className="flex items-center justify-between pt-6 border-t border-gray-800">
+              <div className="flex items-center gap-6">
+                <button
+                  onClick={() => handleToggleLike(selectedPost.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                    selectedPost.user_liked
+                      ? 'bg-purple-600/20 text-purple-400'
+                      : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${selectedPost.user_liked ? 'fill-current' : ''}`} />
+                  <span>{selectedPost.likes_count}</span>
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-gray-400 rounded-lg hover:bg-gray-800 transition-all">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{selectedPost.replies_count}</span>
+                </button>
+                <button
+                  onClick={() => toggleBookmark(selectedPost.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                    bookmarkedPosts.has(selectedPost.id)
+                      ? 'bg-purple-600/20 text-purple-400'
+                      : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800'
+                  }`}
+                >
+                  <Bookmark className={`w-4 h-4 ${bookmarkedPosts.has(selectedPost.id) ? 'fill-current' : ''}`} />
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-gray-400 rounded-lg hover:bg-gray-800 transition-all">
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </button>
+              </div>
+              {/* Admin/Author Actions */}
+              {(user?.is_admin || selectedPost.author.id === user?.id) && (
+                <div className="flex items-center gap-2">
+                  {user?.is_admin && (
+                    <button
+                      onClick={async () => {
+                        if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                          try {
+                            await communityAPI.deletePost(selectedPost.id);
+                            setSelectedPost(null);
+                            setReplies([]);
+                            loadPosts();
+                            alert('Post deleted successfully');
+                          } catch (error: any) {
+                            alert(error.response?.data?.detail || 'Failed to delete post');
+                          }
+                        }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/30 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -418,16 +446,16 @@ export default function CommunityHub() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mb-2">
                 Community Hub
               </h1>
-              <p className="text-gray-400">Share experiences, get help, and shape ANDROAMA's future</p>
+              <p className="text-gray-400 text-lg">Share experiences, get help, and shape ANDROAMA's future</p>
             </div>
             <button
               onClick={() => setShowCreatePost(true)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
             >
               <Plus className="w-5 h-5" />
               New Post
@@ -643,7 +671,7 @@ export default function CommunityHub() {
               <div
                 key={post.id}
                 onClick={() => handleViewPost(post)}
-                className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-2xl p-6 hover:border-gray-700 cursor-pointer transition-all"
+                className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-2xl p-6 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer transition-all transform hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 flex-wrap">
@@ -697,19 +725,42 @@ export default function CommunityHub() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 text-sm text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-4 h-4" />
-                      <span>{post.likes_count}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6 text-sm text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <Heart className="w-4 h-4" />
+                        <span>{post.likes_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="w-4 h-4" />
+                        <span>{post.replies_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>{post.views}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{post.replies_count}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{post.views}</span>
-                    </div>
+                    {/* Admin Delete Button */}
+                    {user?.is_admin && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+                            try {
+                              await communityAPI.deletePost(post.id);
+                              loadPosts();
+                              alert('Post deleted successfully');
+                            } catch (error: any) {
+                              alert(error.response?.data?.detail || 'Failed to delete post');
+                            }
+                          }
+                        }}
+                        className="ml-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded-lg transition-all"
+                        title="Delete post"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

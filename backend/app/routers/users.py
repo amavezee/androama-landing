@@ -20,14 +20,21 @@ async def update_profile(
 ):
     """Update user profile"""
     # Check if username is taken (if provided and different)
-    if user_update.username and user_update.username != current_user.username:
-        existing_user = db.query(User).filter(User.username == user_update.username).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken"
-            )
-        current_user.username = user_update.username
+    if user_update.username is not None:
+        username_trimmed = user_update.username.strip() if user_update.username else None
+        # Allow empty string to clear username
+        if username_trimmed == "":
+            username_trimmed = None
+        
+        if username_trimmed != current_user.username:
+            if username_trimmed:  # Only check if username is not None/empty
+                existing_user = db.query(User).filter(User.username == username_trimmed).first()
+                if existing_user:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Username already taken"
+                    )
+            current_user.username = username_trimmed
     
     if user_update.edition:
         current_user.edition = user_update.edition
