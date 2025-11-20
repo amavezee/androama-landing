@@ -12,6 +12,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# CRITICAL FIX: Monkey-patch bcrypt to truncate passwords BEFORE they reach passlib
+# This ensures passwords are always truncated, even if passlib calls bcrypt directly
+try:
+    import bcrypt as _bcrypt_module
+    _original_hashpw = _bcrypt_module.hashpw
+    _original_checkpw = _bcrypt_module.checkpw
+    
+    def _truncate_bytes_for_bcrypt(password: bytes) -> bytes:
+        """Truncate password bytes to 70 bytes for bcrypt"""
+        if len(password) > 70:
+            return password[:70]
+        return password
+    
+    def _patched_hashpw(password: bytes, salt: bytes) -> bytes:
+        """Patched hashpw that truncates passwords > 70 bytes"""
+        password = _truncate_bytes_for_bcrypt(password)
+        return _original_hashpw(password, salt)
+    
+    def _patched_checkpw(password: bytes, hashed: bytes) -> bool:
+        """Patched checkpw that truncates passwords > 70 bytes"""
+        password = _truncate_bytes_for_bcrypt(password)
+        return _original_checkpw(password, hashed)
+    
+    # Apply the monkey patch
+    _bcrypt_module.hashpw = _patched_hashpw
+    _bcrypt_module.checkpw = _patched_checkpw
+    print("✅ Monkey-patched bcrypt to truncate passwords automatically")
+except Exception as e:
+    print(f"⚠️ Warning: Could not monkey-patch bcrypt: {e}")
+
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
