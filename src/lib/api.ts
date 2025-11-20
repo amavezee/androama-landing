@@ -293,5 +293,79 @@ export const adminAPI = {
   },
 };
 
+export interface App {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  packageName: string;
+  downloadUrl: string;
+  iconUrl?: string;
+  category: string;
+  isEssential: boolean;
+  build?: number;
+}
+
+export interface AppListResponse {
+  apps: App[];
+  lastUpdated: string;
+}
+
+export interface AppCreateData {
+  name: string;
+  description: string;
+  version: string;
+  package_name: string;
+  category?: string;
+  icon_url?: string;
+  is_essential?: boolean;
+}
+
+export interface AppUpdateData {
+  name?: string;
+  description?: string;
+  version?: string;
+  package_name?: string;
+  category?: string;
+  icon_url?: string;
+  is_essential?: boolean;
+}
+
+export const appManagementAPI = {
+  uploadApp: async (file: File, data: AppCreateData): Promise<{ message: string; app: App }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', data.name);
+    formData.append('description', data.description);
+    formData.append('version', data.version);
+    formData.append('package_name', data.package_name);
+    formData.append('category', data.category || 'Other');
+    if (data.icon_url) formData.append('icon_url', data.icon_url);
+    formData.append('is_essential', (data.is_essential || false).toString());
+
+    const response = await api.post<{ message: string; app: App }>('/api/admin/apps/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getApps: async (): Promise<AppListResponse> => {
+    const response = await api.get<AppListResponse>('/api/admin/apps/list');
+    return response.data;
+  },
+
+  updateApp: async (appId: string, data: AppUpdateData): Promise<{ message: string; app: App }> => {
+    const response = await api.put<{ message: string; app: App }>(`/api/admin/apps/${appId}`, data);
+    return response.data;
+  },
+
+  deleteApp: async (appId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/api/admin/apps/${appId}`);
+    return response.data;
+  },
+};
+
 export default api;
 

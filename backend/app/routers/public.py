@@ -79,3 +79,65 @@ async def validate_beta_token(request: BetaTokenRequest):
     except JWTError:
         return {"valid": False, "reason": "Token expired or invalid"}
 
+
+@router.get("/apps/list")
+async def get_apps_list():
+    """
+    Get list of available apps for Androama desktop app.
+    This endpoint is checked automatically when users open the Apps section.
+    
+    Apps are managed through the Admin Panel - no manual editing needed!
+    """
+    import json
+    from pathlib import Path
+    
+    # Try to load from JSON file (managed by admin panel)
+    backend_dir = Path(__file__).parent.parent.parent
+    apps_file = backend_dir / "apps_list.json"
+    
+    if apps_file.exists():
+        try:
+            with open(apps_file, 'r', encoding='utf-8') as f:
+                apps_data = json.load(f)
+                # Ensure lastUpdated is current
+                from datetime import datetime
+                apps_data["lastUpdated"] = datetime.utcnow().isoformat() + "Z"
+                return apps_data
+        except Exception as e:
+            # If JSON file is corrupted, fall back to default
+            pass
+    
+    # Fallback to default apps if JSON file doesn't exist
+    from datetime import datetime
+    
+    apps = [
+        {
+            "id": "androama_websocket_client",
+            "name": "ANDROAMA Client",
+            "description": "Enhanced WebSocket client v2.0 with SMS, phone calls, photos, notifications, and ADB Proxy. Full device integration for seamless PC-to-phone connectivity.",
+            "version": "2.0.0",
+            "build": 13,
+            "packageName": "com.androama.websocketclient",
+            "downloadUrl": "https://androama.com/downloads/androama-client-v2.0.0-build13.apk",
+            "iconUrl": "https://androama.com/images/androama-client-icon.png",
+            "category": "Essentials",
+            "isEssential": True
+        },
+        {
+            "id": "termux",
+            "name": "Termux",
+            "description": "Terminal emulator with package management. Required for SSH tunnels and advanced features. Provides Linux-like environment on Android.",
+            "version": "0.118.0",
+            "packageName": "com.termux",
+            "downloadUrl": "https://androama.com/downloads/termux-latest.apk",
+            "iconUrl": "https://raw.githubusercontent.com/termux/termux-app/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+            "category": "Tools",
+            "isEssential": False
+        }
+    ]
+    
+    return {
+        "apps": apps,
+        "lastUpdated": datetime.utcnow().isoformat() + "Z"
+    }
+
