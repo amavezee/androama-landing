@@ -13,7 +13,8 @@ from app.auth import (
     get_password_hash,
     get_user_by_email,
     get_current_active_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    _truncate_password
 )
 from app.oauth import google_oauth_login
 from datetime import datetime
@@ -93,6 +94,10 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         # Normalize email
         email = credentials.email.lower().strip()
         
+        # CRITICAL: Truncate password to 72 bytes BEFORE authentication
+        # This prevents passlib/bcrypt from throwing errors about password length
+        password = truncate_password(credentials.password)
+        
         # Check if user has OAuth account (no password)
         user = get_user_by_email(db, email)
         if user and user.oauth_provider and not user.password_hash:
@@ -101,8 +106,8 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
                 detail=f"Please sign in with {user.oauth_provider.title()}"
             )
         
-        # Authenticate user
-        user = authenticate_user(db, email, credentials.password)
+        # Authenticate user with truncated password
+        user = authenticate_user(db, email, password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

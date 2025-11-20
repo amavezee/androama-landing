@@ -21,7 +21,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-def _truncate_password(password: str) -> str:
+def truncate_password(password: str) -> str:
     """Truncate password to 72 bytes for bcrypt compatibility"""
     if not isinstance(password, str):
         password = str(password)
@@ -44,7 +44,7 @@ def _truncate_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     # Bcrypt has a 72-byte limit, truncate if necessary
-    plain_password = _truncate_password(plain_password)
+    plain_password = truncate_password(plain_password)
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except ValueError as e:
@@ -59,7 +59,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a password"""
     # Bcrypt has a 72-byte limit, truncate if necessary
-    password = _truncate_password(password)
+    password = truncate_password(password)
     try:
         return pwd_context.hash(password)
     except ValueError as e:
