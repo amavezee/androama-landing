@@ -64,15 +64,29 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
 # Configure bcrypt context with truncation handling
 # Note: bcrypt has a 72-byte limit, we handle truncation in our functions
-# CRITICAL: Use $2b$ format explicitly and configure for bcrypt 5.0.0 compatibility
+# CRITICAL: Configure passlib to work with bcrypt 5.0.0
+# Force passlib to use bcrypt backend explicitly and handle $2a$/$2b$ formats
+try:
+    # Try to force passlib to use bcrypt backend before creating context
+    from passlib.handlers.bcrypt import bcrypt
+    # Ensure backend is set
+    if hasattr(bcrypt, 'set_backend'):
+        try:
+            bcrypt.set_backend('bcrypt')
+        except Exception:
+            pass  # Backend might already be set
+except Exception:
+    pass  # Will use default
+
 _base_pwd_context = CryptContext(
     schemes=["bcrypt"], 
     deprecated="auto", 
-    bcrypt__ident="2b",  # Use $2b$ format (most compatible)
+    bcrypt__ident="2b",  # Use $2b$ format (most compatible with bcrypt 5.0.0)
     bcrypt__rounds=12,
-    # Ensure passlib uses the correct bcrypt backend
     bcrypt__min_rounds=4,
     bcrypt__max_rounds=31,
+    # Allow passlib to handle both $2a$ and $2b$ formats
+    bcrypt__vary_rounds=0.1,
 )
 
 # Create a wrapper class that ALWAYS truncates passwords before passlib sees them
@@ -162,8 +176,30 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # The wrapper will truncate again, but this ensures we're safe
     try:
         return pwd_context.verify(plain_password, hashed_password)
+    except RuntimeError as e:
+        # Handle "wraparound hash" error - this is a passlib/bcrypt compatibility issue
+        error_msg = str(e).lower()
+        if "wraparound" in error_msg or "backend failed" in error_msg:
+            logger.warning(f"Passlib backend error, trying direct bcrypt verification: {e}")
+            # Fallback: try direct bcrypt verification
+            try:
+                import bcrypt as _bcrypt_direct
+                # Convert hash to bytes if needed
+                if isinstance(hashed_password, str):
+                    hashed_bytes = hashed_password.encode('utf-8')
+                else:
+                    hashed_bytes = hashed_password
+                # Verify directly with bcrypt
+                password_bytes = plain_password.encode('utf-8')
+                if len(password_bytes) > 70:
+                    password_bytes = password_bytes[:70]
+                return _bcrypt_direct.checkpw(password_bytes, hashed_bytes)
+            except Exception as direct_error:
+                logger.error(f"Direct bcrypt verification also failed: {direct_error}")
+                raise e  # Re-raise original error
+        raise
     except Exception as e:
-        # Log the actual error for debugging
+        # Log other errors for debugging
         logger.error(f"Password verification error: {e}, hash format: {hashed_password[:20] if hashed_password else 'None'}...")
         logger.error(f"Error type: {type(e).__name__}")
         import traceback
