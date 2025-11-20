@@ -89,11 +89,13 @@ export default function BetaGate() {
             // Grant beta access
             sessionStorage.setItem('beta_access_granted', 'true');
             window.dispatchEvent(new Event('betaAccessGranted'));
-            // Remove token from URL and redirect
+            // Remove token from URL but preserve the current path
             urlParams.delete('betaToken');
-            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            const currentPath = window.location.pathname;
+            const newUrl = currentPath + (urlParams.toString() ? '?' + urlParams.toString() : '');
             window.history.replaceState({}, '', newUrl);
-            navigate('/', { replace: true });
+            // Don't navigate - let App.tsx handle the routing based on the preserved path
+            // The forceUpdate in App.tsx will re-render with the correct route
           }
         } catch (error) {
           console.error('Failed to validate beta token:', error);
