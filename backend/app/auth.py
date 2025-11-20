@@ -18,7 +18,34 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
 # Configure bcrypt context with truncation handling
 # Note: bcrypt has a 72-byte limit, we handle truncation in our functions
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
+_base_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
+
+# Create a wrapper class that ALWAYS truncates passwords before passlib sees them
+class TruncatingCryptContext:
+    """Wrapper around CryptContext that always truncates passwords to 72 bytes"""
+    def __init__(self, base_context):
+        self._base = base_context
+    
+    def hash(self, password: str) -> str:
+        """Hash a password, truncating to 70 bytes first to avoid passlib errors"""
+        # Truncate BEFORE passlib sees it
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 70:
+            password_bytes = password_bytes[:70]
+            password = password_bytes.decode('utf-8', errors='ignore')
+        return self._base.hash(password)
+    
+    def verify(self, plain_password: str, hashed_password: str) -> bool:
+        """Verify a password, truncating to 70 bytes first to avoid passlib errors"""
+        # Truncate BEFORE passlib sees it
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 70:
+            password_bytes = password_bytes[:70]
+            plain_password = password_bytes.decode('utf-8', errors='ignore')
+        return self._base.verify(plain_password, hashed_password)
+
+# Use the truncating wrapper
+pwd_context = TruncatingCryptContext(_base_pwd_context)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 def truncate_password(password: str) -> str:
@@ -43,55 +70,33 @@ def truncate_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    # Bcrypt has a 72-byte limit, truncate if necessary
-    # Truncate BEFORE any passlib operations to prevent errors
+    # The TruncatingCryptContext wrapper handles truncation automatically
+    # But we'll also truncate here as a safety measure
     plain_password = truncate_password(plain_password)
     
-    # Double-check byte length after truncation
+    # Ensure it's definitely <= 70 bytes
     password_bytes = plain_password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Force truncate to 70 bytes to be absolutely safe
+    if len(password_bytes) > 70:
         password_bytes = password_bytes[:70]
         plain_password = password_bytes.decode('utf-8', errors='ignore')
     
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except (ValueError, Exception) as e:
-        # If passlib/bcrypt still complains, truncate more aggressively
-        error_msg = str(e).lower()
-        if "72 bytes" in error_msg or "truncate" in error_msg or "too long" in error_msg:
-            # Truncate to 70 bytes and try again
-            password_bytes = plain_password.encode('utf-8')[:70]
-            plain_password = password_bytes.decode('utf-8', errors='ignore')
-            return pwd_context.verify(plain_password, hashed_password)
-        # Re-raise if it's a different error
-        raise
+    # The wrapper will truncate again, but this ensures we're safe
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    # Bcrypt has a 72-byte limit, truncate if necessary
-    # Truncate BEFORE any passlib operations to prevent errors
+    # The TruncatingCryptContext wrapper handles truncation automatically
+    # But we'll also truncate here as a safety measure
     password = truncate_password(password)
     
-    # Double-check byte length after truncation
+    # Ensure it's definitely <= 70 bytes
     password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Force truncate to 70 bytes to be absolutely safe
+    if len(password_bytes) > 70:
         password_bytes = password_bytes[:70]
         password = password_bytes.decode('utf-8', errors='ignore')
     
-    try:
-        return pwd_context.hash(password)
-    except (ValueError, Exception) as e:
-        # If passlib/bcrypt still complains, truncate more aggressively
-        error_msg = str(e).lower()
-        if "72 bytes" in error_msg or "truncate" in error_msg or "too long" in error_msg:
-            # Truncate to 70 bytes and try again
-            password_bytes = password.encode('utf-8')[:70]
-            password = password_bytes.decode('utf-8', errors='ignore')
-            return pwd_context.hash(password)
-        # Re-raise if it's a different error
-        raise
+    # The wrapper will truncate again, but this ensures we're safe
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create a JWT access token"""
