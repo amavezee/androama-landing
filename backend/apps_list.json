@@ -3,15 +3,15 @@
     {
       "id": "androama_websocket_client",
       "name": "ANDROAMA Client",
-      "description": "Enhanced WebSocket client with SMS, phone calls, photos, notifications, and ADB Proxy. Full device integration for seamless PC-to-phone connectivity.",
-      "version": "1.1",
+      "description": "Enhanced WebSocket client with SMS, phone calls, photos, notifications, and ADB Proxy. Full device integration for seamless PC-to-phone connectivity. Auto-subscribes to device on connection.",
+      "version": "1.2",
       "packageName": "com.androama.websocketclient",
-      "downloadUrl": "https://androama.com/downloads/androama-client-v1.1.apk",
+      "downloadUrl": "https://androama.com/downloads/androama-client-v1.2.apk",
       "iconUrl": "https://androama.com/images/NEWANDRO.png",
       "category": "Essentials",
       "isEssential": true
     }
   ],
-  "lastUpdated": "2025-01-20T12:00:00Z"
+  "lastUpdated": "2025-01-20T19:45:00Z"
 }
 
