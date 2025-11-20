@@ -12,6 +12,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# CRITICAL FIX: Add __about__ compatibility shim for bcrypt 5.0.0
+# Passlib expects bcrypt.__about__.__version__ but bcrypt 5.0.0 doesn't have it
+# This must be done BEFORE passlib imports bcrypt
+try:
+    import bcrypt as _bcrypt_check
+    if not hasattr(_bcrypt_check, '__about__'):
+        class _BcryptAbout:
+            __version__ = getattr(_bcrypt_check, '__version__', '5.0.0')
+        _bcrypt_check.__about__ = _BcryptAbout()
+        print("✅ Added bcrypt __about__ compatibility shim for passlib")
+except Exception as e:
+    print(f"⚠️ Warning: Could not add bcrypt __about__ shim: {e}")
+
 # CRITICAL FIX: Monkey-patch bcrypt to truncate passwords BEFORE they reach passlib
 # This ensures passwords are always truncated, even if passlib calls bcrypt directly
 try:
