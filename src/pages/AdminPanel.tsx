@@ -638,7 +638,19 @@ export default function AdminPanel() {
                         <tr key={app.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
                           <td className="py-3 px-4">
                             {app.iconUrl ? (
-                              <img src={app.iconUrl} alt={app.name} className="w-10 h-10 rounded-lg" />
+                              <img 
+                                src={app.iconUrl} 
+                                alt={app.name} 
+                                className="w-10 h-10 rounded-lg object-cover bg-gray-800"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML = '<div class="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>';
+                                  }
+                                }}
+                              />
                             ) : (
                               <div className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center">
                                 <Package className="w-5 h-5 text-gray-400" />
@@ -647,7 +659,7 @@ export default function AdminPanel() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="text-white font-medium">{app.name}</div>
-                            <div className="text-gray-400 text-sm mt-1 line-clamp-1">{app.description}</div>
+                            <div className="text-gray-400 text-sm mt-1 line-clamp-2 max-w-md">{app.description}</div>
                           </td>
                           <td className="py-3 px-4 text-gray-300">{app.version}</td>
                           <td className="py-3 px-4">
