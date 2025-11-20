@@ -97,9 +97,14 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
         # Normalize email
         email = credentials.email.lower().strip()
         
-        # CRITICAL: Truncate password to 72 bytes BEFORE authentication
+        # CRITICAL: Truncate password to 70 bytes BEFORE authentication
         # This prevents passlib/bcrypt from throwing errors about password length
         password = truncate_password(credentials.password)
+        # Force truncate to 70 bytes to be absolutely safe
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 70:
+            password_bytes = password_bytes[:70]
+            password = password_bytes.decode('utf-8', errors='ignore')
         
         # Check if user has OAuth account (no password)
         user = get_user_by_email(db, email)
@@ -110,7 +115,20 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
             )
         
         # Authenticate user with truncated password
-        user = authenticate_user(db, email, password)
+        # Wrap in try-except to catch any passlib errors
+        try:
+            user = authenticate_user(db, email, password)
+        except (ValueError, Exception) as e:
+            # If passlib still throws 72-byte error, truncate more aggressively
+            error_msg = str(e).lower()
+            if "72" in error_msg or "byte" in error_msg or "truncate" in error_msg or "too long" in error_msg:
+                # Last resort: truncate to 65 bytes and try again
+                password_bytes = password.encode('utf-8')[:65]
+                password = password_bytes.decode('utf-8', errors='ignore')
+                user = authenticate_user(db, email, password)
+            else:
+                # Re-raise if it's a different error
+                raise
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
