@@ -18,7 +18,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
 # Configure bcrypt context with truncation handling
 # Note: bcrypt has a 72-byte limit, we handle truncation in our functions
-_base_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__ident="2b")
+# Try to disable passlib's internal validation by using a custom handler
+_base_pwd_context = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto", 
+    bcrypt__ident="2b",
+    # Try to prevent passlib from validating password length
+    bcrypt__rounds=12
+)
 
 # Create a wrapper class that ALWAYS truncates passwords before passlib sees them
 class TruncatingCryptContext:
