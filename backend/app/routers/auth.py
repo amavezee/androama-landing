@@ -14,7 +14,7 @@ from app.auth import (
     get_user_by_email,
     get_current_active_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    _truncate_password
+    truncate_password
 )
 from app.oauth import google_oauth_login
 from datetime import datetime
