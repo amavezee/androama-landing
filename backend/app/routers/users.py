@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 from app.schemas import UserResponse, UserUpdate, PasswordChange
-from app.auth import get_current_active_user, verify_password, get_password_hash
+from app.auth import get_current_active_user, verify_password, get_password_hash, truncate_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -61,22 +61,26 @@ async def change_password(
             detail="Password change not available for OAuth accounts. Please use your OAuth provider to manage your account."
         )
     
+    # CRITICAL: Truncate passwords BEFORE verification/hashing to prevent 72-byte limit errors
+    current_password = truncate_password(password_data.current_password)
+    new_password = truncate_password(password_data.new_password)
+    
     # Verify current password
-    if not verify_password(password_data.current_password, current_user.password_hash):
+    if not verify_password(current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect"
         )
     
     # Check if new password is different
-    if verify_password(password_data.new_password, current_user.password_hash):
+    if verify_password(new_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different from current password"
         )
     
     # Update password
-    current_user.password_hash = get_password_hash(password_data.new_password)
+    current_user.password_hash = get_password_hash(new_password)
     db.commit()
     
     return {"message": "Password changed successfully"}

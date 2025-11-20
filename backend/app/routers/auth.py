@@ -59,8 +59,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
                 detail="Password must be at least 8 characters long"
             )
         
+        # CRITICAL: Truncate password BEFORE hashing to prevent 72-byte limit errors
+        password = truncate_password(user_data.password)
+        
         # Create new user
-        hashed_password = get_password_hash(user_data.password)
+        hashed_password = get_password_hash(password)
         new_user = User(
             email=user_data.email.lower().strip(),  # Normalize email
             password_hash=hashed_password,
