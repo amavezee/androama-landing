@@ -7,12 +7,16 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_active_user
 from app.models import User
+from dotenv import load_dotenv
 import stripe
 import os
 
+# Load environment variables
+load_dotenv()
+
 router = APIRouter(prefix="/api/stripe", tags=["stripe"])
 
-# Initialize Stripe with test key
+# Initialize Stripe with test key from environment
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_51QEXAMPLE")
 
 class PaymentIntentRequest(BaseModel):
