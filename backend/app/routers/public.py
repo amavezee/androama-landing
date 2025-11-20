@@ -51,3 +51,31 @@ async def get_beta_password_public(db: Session = Depends(get_db)):
         return {"password": default_password}
     return {"password": setting.value}
 
+class BetaTokenRequest(BaseModel):
+    token: str
+
+@router.post("/beta/validate-token")
+async def validate_beta_token(request: BetaTokenRequest):
+    """Validate a beta access token (public endpoint, no auth required).
+    
+    Returns whether the token is valid and grants beta access.
+    """
+    from jose import JWTError, jwt
+    import os
+    
+    SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+    ALGORITHM = os.getenv("ALGORITHM", "HS256")
+    
+    try:
+        payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
+        token_type = payload.get("type")
+        
+        # Check if this is a beta access token
+        if token_type != "beta_access":
+            return {"valid": False, "reason": "Invalid token type"}
+        
+        # Token is valid
+        return {"valid": True}
+    except JWTError:
+        return {"valid": False, "reason": "Token expired or invalid"}
+

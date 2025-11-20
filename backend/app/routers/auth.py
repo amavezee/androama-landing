@@ -239,3 +239,35 @@ async def logout(current_user: User = Depends(get_current_active_user)):
     """Logout (client should remove token)"""
     return {"message": "Successfully logged out"}
 
+@router.post("/beta/access-token")
+async def generate_beta_access_token(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Generate a short-lived token for beta users to bypass betagate password.
+    
+    Only users with 'beta' or 'pro' subscription_tier can generate tokens.
+    Tokens expire after 60 seconds.
+    """
+    # Check if user has beta or pro license
+    tier = current_user.subscription_tier.lower()
+    if tier not in ['beta', 'pro']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Beta access tokens are only available for beta/pro license holders"
+        )
+    
+    # Generate a short-lived JWT token (60 seconds TTL)
+    token_data = {
+        "sub": current_user.email,
+        "user_id": str(current_user.id),
+        "tier": tier,
+        "type": "beta_access"
+    }
+    expires_delta = timedelta(seconds=60)
+    beta_token = create_access_token(data=token_data, expires_delta=expires_delta)
+    
+    return {
+        "token": beta_token,
+        "ttl_seconds": 60
+    }
+

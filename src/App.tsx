@@ -45,6 +45,44 @@ function AppContent() {
     };
   }, []);
 
+  // Check for betaToken in URL and validate it
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const betaToken = urlParams.get('betaToken');
+    
+    if (betaToken && sessionStorage.getItem('beta_access_granted') !== 'true') {
+      // Validate token with backend
+      const validateToken = async () => {
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          const response = await fetch(`${API_URL}/api/public/beta/validate-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: betaToken }),
+          });
+          
+          const data = await response.json();
+          if (data.valid === true) {
+            // Grant beta access
+            sessionStorage.setItem('beta_access_granted', 'true');
+            // Remove token from URL
+            urlParams.delete('betaToken');
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+            // Force re-render
+            forceUpdate({});
+          }
+        } catch (error) {
+          console.error('Failed to validate beta token:', error);
+        }
+      };
+      
+      validateToken();
+    }
+  }, [location.search]);
+
   // Show beta gate if no access (except on beta-gate page itself)
   // Use a more reliable check that updates immediately
   const hasAccess = sessionStorage.getItem('beta_access_granted') === 'true';

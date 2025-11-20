@@ -67,6 +67,43 @@ export default function BetaGate() {
     }
   };
 
+  // Check for betaToken in URL and validate it
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const betaToken = urlParams.get('betaToken');
+    
+    if (betaToken) {
+      // Validate token with backend
+      const validateToken = async () => {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/public/beta/validate-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token: betaToken }),
+          });
+          
+          const data = await response.json();
+          if (data.valid === true) {
+            // Grant beta access
+            sessionStorage.setItem('beta_access_granted', 'true');
+            window.dispatchEvent(new Event('betaAccessGranted'));
+            // Remove token from URL and redirect
+            urlParams.delete('betaToken');
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+            navigate('/', { replace: true });
+          }
+        } catch (error) {
+          console.error('Failed to validate beta token:', error);
+        }
+      };
+      
+      validateToken();
+    }
+  }, []);
+
   // Check if already granted access - redirect immediately
   if (sessionStorage.getItem('beta_access_granted') === 'true') {
     // Already has access, redirect to home
