@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 import os
+import logging
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -61,13 +64,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 
 # Configure bcrypt context with truncation handling
 # Note: bcrypt has a 72-byte limit, we handle truncation in our functions
-# Try to disable passlib's internal validation by using a custom handler
+# CRITICAL: Use $2b$ format explicitly and configure for bcrypt 5.0.0 compatibility
 _base_pwd_context = CryptContext(
     schemes=["bcrypt"], 
     deprecated="auto", 
-    bcrypt__ident="2b",
-    # Try to prevent passlib from validating password length
-    bcrypt__rounds=12
+    bcrypt__ident="2b",  # Use $2b$ format (most compatible)
+    bcrypt__rounds=12,
+    # Ensure passlib uses the correct bcrypt backend
+    bcrypt__min_rounds=4,
+    bcrypt__max_rounds=31,
 )
 
 # Create a wrapper class that ALWAYS truncates passwords before passlib sees them
@@ -155,7 +160,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         plain_password = password_bytes.decode('utf-8', errors='ignore')
     
     # The wrapper will truncate again, but this ensures we're safe
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        # Log the actual error for debugging
+        logger.error(f"Password verification error: {e}, hash format: {hashed_password[:20] if hashed_password else 'None'}...")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Re-raise to maintain original behavior
+        raise
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
