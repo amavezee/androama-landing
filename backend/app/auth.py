@@ -19,36 +19,36 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
+def _truncate_password(password: str) -> str:
+    """Truncate password to 72 bytes for bcrypt compatibility"""
+    if not isinstance(password, str):
+        password = str(password)
+    
+    # Encode to bytes to check actual byte length
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        # Truncate to exactly 72 bytes
+        password_bytes = password_bytes[:72]
+        # Decode back to string, handling potential UTF-8 truncation issues
+        try:
+            password = password_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            # If truncation broke UTF-8, remove last byte and try again
+            password_bytes = password_bytes[:71]
+            password = password_bytes.decode('utf-8', errors='ignore')
+    
+    return password
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     # Bcrypt has a 72-byte limit, truncate if necessary
-    if not isinstance(plain_password, str):
-        plain_password = str(plain_password)
-    
-    # Encode to bytes to check length
-    password_bytes = plain_password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes, then decode back to string
-        password_bytes = password_bytes[:72]
-        # Decode with error handling in case truncation breaks UTF-8
-        plain_password = password_bytes.decode('utf-8', errors='ignore')
-    
+    plain_password = _truncate_password(plain_password)
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
     # Bcrypt has a 72-byte limit, truncate if necessary
-    if not isinstance(password, str):
-        password = str(password)
-    
-    # Encode to bytes to check length
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Truncate to 72 bytes, then decode back to string
-        password_bytes = password_bytes[:72]
-        # Decode with error handling in case truncation breaks UTF-8
-        password = password_bytes.decode('utf-8', errors='ignore')
-    
+    password = _truncate_password(password)
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
