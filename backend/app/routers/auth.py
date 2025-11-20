@@ -245,15 +245,17 @@ async def generate_beta_access_token(
 ):
     """Generate a short-lived token for beta users to bypass betagate password.
     
-    Only users with 'beta' or 'pro' subscription_tier can generate tokens.
+    Only users with 'beta' or 'pro' subscription_tier, or admins can generate tokens.
     Tokens expire after 60 seconds.
     """
-    # Check if user has beta or pro license
-    tier = current_user.subscription_tier.lower()
-    if tier not in ['beta', 'pro']:
+    # Check if user has beta or pro license, or is an admin
+    tier = (current_user.subscription_tier or '').lower()
+    is_admin = current_user.is_admin or False
+    
+    if tier not in ['beta', 'pro'] and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Beta access tokens are only available for beta/pro license holders"
+            detail="Beta access tokens are only available for beta/pro license holders or admins"
         )
     
     # Generate a short-lived JWT token (60 seconds TTL)
