@@ -36,11 +36,16 @@ app.include_router(stripe.router)
 # Mount static files for downloads (served at /downloads/...)
 # This allows direct access to APK files uploaded via Admin Panel
 try:
-    backend_dir = Path(__file__).parent.parent
-    public_dir = backend_dir / "public"
+    # Get project root (go up from backend/app/main.py: backend/app -> backend -> project root)
+    project_root = Path(__file__).parent.parent.parent
+    public_dir = project_root / "public"
     if public_dir.exists():
-        app.mount("/downloads", StaticFiles(directory=str(public_dir / "downloads")), name="downloads")
-        print(f"✅ Static files mounted: /downloads -> {public_dir / 'downloads'}")
+        downloads_dir = public_dir / "downloads"
+        if downloads_dir.exists():
+            app.mount("/downloads", StaticFiles(directory=str(downloads_dir)), name="downloads")
+            print(f"✅ Static files mounted: /downloads -> {downloads_dir}")
+        else:
+            print(f"⚠️ Warning: Downloads directory not found at {downloads_dir}")
     else:
         print(f"⚠️ Warning: Public directory not found at {public_dir}")
 except Exception as e:

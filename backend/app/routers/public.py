@@ -151,9 +151,10 @@ async def download_file(filename: str):
     This endpoint allows downloading APK files that were uploaded via the Admin Panel.
     """
     try:
-        # Get the backend directory (parent of app directory)
-        backend_dir = Path(__file__).parent.parent.parent
-        downloads_dir = backend_dir / "public" / "downloads"
+        # Get the project root directory (go up from backend/app/routers/public.py)
+        # backend/app/routers/public.py -> backend/app/routers -> backend/app -> backend -> project root
+        project_root = Path(__file__).parent.parent.parent.parent
+        downloads_dir = project_root / "public" / "downloads"
         file_path = downloads_dir / filename
         
         # Security: prevent directory traversal
