@@ -128,7 +128,7 @@ async def get_or_create_google_user(db: Session, google_user_info: dict) -> User
             email_verified=True,  # Google emails are verified
             edition="monitor",
             subscription_status="none",
-            subscription_tier="free",
+            subscription_tier="beta",
             is_active=True
         )
         db.add(user)

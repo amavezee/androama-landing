@@ -47,7 +47,7 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)  # Profile picture from OAuth
     edition = Column(String(50), default='monitor')  # monitor, parental, enterprise, ultimate
     subscription_status = Column(String(50), default='none')  # none, active, expired, cancelled, lifetime (matches desktop)
-    subscription_tier = Column(String(50), default='free')  # free, pro, lifetime (matches desktop license_tier)
+    subscription_tier = Column(String(50), default='beta')  # beta, lifetime (both functionally the same)
     license_key = Column(String(255), unique=True, nullable=True, index=True)  # License key for desktop app
     subscription_end = Column(DateTime(timezone=True), nullable=True)  # When subscription expires
     created_at = Column(DateTime(timezone=True), server_default=func.now())

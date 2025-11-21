@@ -273,6 +273,19 @@ export const adminAPI = {
   },
 
   getUsers: async (skip?: number, limit?: number): Promise<User[]> => {
+    const params = new URLSearchParams();
+    if (skip !== undefined) params.append('skip', skip.toString());
+    if (limit !== undefined) params.append('limit', limit.toString());
+    const response = await api.get<User[]>(`/api/admin/users?${params.toString()}`);
+    return response.data;
+  },
+
+  updateUserTier: async (userId: string, tier: string): Promise<User> => {
+    const response = await api.put<User>(`/api/admin/users/${userId}/tier`, {
+      subscription_tier: tier
+    });
+    return response.data;
+  },
     const queryParams = new URLSearchParams();
     if (skip) queryParams.append('skip', skip.toString());
     if (limit) queryParams.append('limit', limit.toString());

@@ -112,6 +112,60 @@ async def get_all_users(
     ).offset(skip).limit(limit).all()
     return users
 
+class UserTierUpdate(BaseModel):
+    subscription_tier: str
+
+@router.put("/users/{user_id}/tier", response_model=UserResponse)
+async def update_user_tier(
+    user_id: str,
+    tier_update: UserTierUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Update user subscription tier (admin only)"""
+    # Validate tier value - only beta and lifetime are available
+    valid_tiers = ['beta', 'lifetime']
+    tier = tier_update.subscription_tier.lower()
+    if tier not in valid_tiers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid tier. Must be one of: {', '.join(valid_tiers)}"
+        )
+    
+    # Find user
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format"
+        )
+    
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Update tier
+    old_tier = user.subscription_tier
+    user.subscription_tier = tier
+    
+    # Both beta and lifetime are functionally the same - set status to active/lifetime
+    if tier == 'lifetime':
+        user.subscription_status = 'lifetime'
+        user.subscription_end = None
+    elif tier == 'beta':
+        # Beta tier is functionally the same as lifetime
+        user.subscription_status = 'active'
+        user.subscription_end = None
+    
+    db.commit()
+    db.refresh(user)
+    
+    return user
+
 class BetaPasswordUpdate(BaseModel):
     password: str
 

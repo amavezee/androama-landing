@@ -542,15 +542,40 @@ export default function AdminPanel() {
                         <td className="py-3 px-4 text-gray-300">{user.username || '—'}</td>
                         <td className="py-3 px-4 text-gray-300 capitalize">{user.edition}</td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium ${
-                            user.subscription_tier === 'free' 
-                              ? 'bg-gray-500/20 text-gray-400' 
-                              : user.subscription_tier === 'pro'
-                              ? 'bg-purple-500/20 text-purple-400'
-                              : 'bg-amber-500/20 text-amber-400'
-                          }`}>
-                            {user.subscription_tier === 'free' ? 'Free' : user.subscription_tier === 'pro' ? 'Pro' : 'Lifetime'}
-                          </span>
+                          <select
+                            value={user.subscription_tier === 'free' || user.subscription_tier === 'pro' ? 'beta' : user.subscription_tier}
+                            onChange={async (e) => {
+                              const newTier = e.target.value;
+                              const currentTier = user.subscription_tier === 'free' || user.subscription_tier === 'pro' ? 'beta' : user.subscription_tier;
+                              if (newTier !== currentTier) {
+                                if (confirm(`Change ${user.email}'s tier from ${currentTier} to ${newTier}?`)) {
+                                  try {
+                                    const updatedUser = await adminAPI.updateUserTier(user.id, newTier);
+                                    setUsers(users.map(u => u.id === user.id ? updatedUser : u));
+                                    alert(`User tier updated successfully!`);
+                                  } catch (error: any) {
+                                    alert(error.response?.data?.detail || 'Failed to update user tier');
+                                    e.target.value = currentTier; // Revert on error
+                                  }
+                                } else {
+                                  e.target.value = currentTier; // Revert if cancelled
+                                }
+                              }
+                            }}
+                            className={`px-2 py-1 rounded text-sm font-medium border-0 bg-transparent cursor-pointer ${
+                              (user.subscription_tier === 'free' || user.subscription_tier === 'pro' || user.subscription_tier === 'beta')
+                                ? 'text-purple-400' 
+                                : 'text-yellow-400'
+                            }`}
+                            style={{
+                              backgroundColor: (user.subscription_tier === 'free' || user.subscription_tier === 'pro' || user.subscription_tier === 'beta')
+                                ? 'rgba(168, 85, 247, 0.2)' 
+                                : 'rgba(234, 179, 8, 0.2)'
+                            }}
+                          >
+                            <option value="beta">Beta</option>
+                            <option value="lifetime">Lifetime</option>
+                          </select>
                         </td>
                         <td className="py-3 px-4">
                           {user.is_active ? (

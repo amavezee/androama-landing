@@ -70,7 +70,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             username=user_data.username.strip() if user_data.username else None,
             edition=user_data.edition or "monitor",
             subscription_status="none",
-            subscription_tier="free",
+            subscription_tier="beta",
             is_active=True,
             email_verified=False
         )
@@ -269,20 +269,15 @@ async def logout(current_user: User = Depends(get_current_active_user)):
 async def generate_beta_access_token(
     current_user: User = Depends(get_current_active_user)
 ):
-    """Generate a short-lived token for beta users to bypass betagate password.
+    """Generate a short-lived token for logged-in users to bypass betagate password.
     
-    Only users with 'beta' or 'pro' subscription_tier, or admins can generate tokens.
-    Tokens expire after 60 seconds.
+    Any authenticated user can generate tokens to access the website without entering
+    the betagate password again. Tokens expire after 60 seconds.
     """
-    # Check if user has beta or pro license, or is an admin
+    # Allow ALL logged-in users to get beta access tokens
+    # This enables seamless redirect from Flutter app to website
     tier = (current_user.subscription_tier or '').lower()
     is_admin = current_user.is_admin or False
-    
-    if tier not in ['beta', 'pro'] and not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Beta access tokens are only available for beta/pro license holders or admins"
-        )
     
     # Generate a short-lived JWT token (60 seconds TTL)
     token_data = {
