@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from app.models import BetaWaitlist, AppSettings
+from pathlib import Path
+import os
 import uuid
 
 router = APIRouter(prefix="/api/public", tags=["public"])
@@ -140,4 +143,46 @@ async def get_apps_list():
         "apps": apps,
         "lastUpdated": datetime.utcnow().isoformat() + "Z"
     }
+
+@router.get("/downloads/{filename:path}")
+async def download_file(filename: str):
+    """
+    Serve APK files from the public/downloads directory.
+    This endpoint allows downloading APK files that were uploaded via the Admin Panel.
+    """
+    try:
+        # Get the backend directory (parent of app directory)
+        backend_dir = Path(__file__).parent.parent.parent
+        downloads_dir = backend_dir / "public" / "downloads"
+        file_path = downloads_dir / filename
+        
+        # Security: prevent directory traversal
+        try:
+            file_path.resolve().relative_to(downloads_dir.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid file path"
+            )
+        
+        # Check if file exists
+        if not file_path.exists() or not file_path.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {filename}"
+            )
+        
+        # Return file with appropriate content type
+        return FileResponse(
+            path=str(file_path),
+            filename=filename,
+            media_type="application/vnd.android.package-archive"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error serving file: {str(e)}"
+        )
 

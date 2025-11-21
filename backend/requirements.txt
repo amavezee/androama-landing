@@ -13,4 +13,5 @@ email-validator==2.1.0
 httpx==0.26.0
 google-auth==2.27.0
 google-auth-oauthlib==1.2.0
+stripe==7.8.0
 

@@ -292,9 +292,9 @@ async def upload_app(
             detail=f"Failed to save file: {str(e)}"
         )
     
-    # Generate download URL
+    # Generate download URL (use API endpoint for reliability)
     base_url = os.getenv("FRONTEND_URL", "https://androama.com")
-    download_url = f"{base_url}/downloads/{safe_filename}"
+    download_url = f"{base_url}/api/public/downloads/{safe_filename}"
     
     # Create app entry
     app_entry = {
