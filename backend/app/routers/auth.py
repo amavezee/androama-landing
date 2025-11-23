@@ -294,3 +294,38 @@ async def generate_beta_access_token(
         "ttl_seconds": 60
     }
 
+@router.post("/verify-token")
+async def verify_token(data: dict, db: Session = Depends(get_db)):
+    """Verify JWT token and return user data (for desktop app integration)"""
+    from app.auth import get_current_active_user_from_token
+    from jose import JWTError
+    
+    token = data.get("token")
+    if not token:
+        return {"success": False, "error": "Token is required"}
+    
+    try:
+        # Verify token and get user
+        user = get_current_active_user_from_token(token, db)
+        
+        return {
+            "success": True,
+            "user_id": str(user.id),  # Convert UUID to string
+            "email": user.email,
+            "license_tier": user.subscription_tier or "beta",
+            "edition": user.edition or "monitor",
+            "subscription_status": user.subscription_status or "active"
+        }
+    except JWTError as e:
+        return {"success": False, "error": "Invalid token"}
+    except HTTPException as e:
+        return {"success": False, "error": e.detail}
+    except Exception as e:
+        logger.error(f"Token verification error: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for VPS connectivity"""
+    return {"status": "ok"}
+

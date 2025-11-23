@@ -96,3 +96,129 @@ async def mark_downloaded(
     db.refresh(current_user)
     return {"message": "Download status updated", "has_downloaded": True}
 
+@router.get("/{user_id}/license/status")
+async def get_license_status(
+    user_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's license status (for desktop app integration)"""
+    import uuid
+    from datetime import datetime
+    
+    # Convert user_id string to UUID
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    
+    # Verify user can access this (own profile or admin)
+    if str(current_user.id) != user_id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Determine if license is valid
+    is_valid = True
+    if user.subscription_status == "expired":
+        is_valid = False
+    elif user.subscription_status == "cancelled":
+        is_valid = False
+    elif user.subscription_end:
+        if datetime.now(user.subscription_end.tzinfo) > user.subscription_end:
+            is_valid = False
+    
+    return {
+        "success": True,
+        "tier": user.subscription_tier or "beta",
+        "status": "valid" if is_valid else "expired",
+        "is_valid": is_valid,
+        "subscription_end": user.subscription_end.isoformat() if user.subscription_end else None,
+        "payment_status": user.subscription_status or "active"
+    }
+
+@router.get("/{user_id}/license/check")
+async def check_license(
+    user_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Check if user's license is valid (for desktop app integration)"""
+    import uuid
+    from datetime import datetime
+    
+    # Convert user_id string to UUID
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        return {"success": False, "valid": False, "reason": "Invalid user ID format"}
+    
+    # Verify user can access this
+    if str(current_user.id) != user_id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if not user:
+        return {"success": False, "valid": False, "reason": "User not found"}
+    
+    # Check license validity
+    is_valid = True
+    reason = ""
+    
+    if user.subscription_status == "expired":
+        is_valid = False
+        reason = "Subscription expired"
+    elif user.subscription_status == "cancelled":
+        is_valid = False
+        reason = "Subscription cancelled"
+    elif user.subscription_end:
+        if datetime.now(user.subscription_end.tzinfo) > user.subscription_end:
+            is_valid = False
+            reason = "Subscription expired"
+    
+    return {
+        "success": True,
+        "valid": is_valid,
+        "reason": reason
+    }
+
+@router.put("/{user_id}/edition")
+async def update_edition(
+    user_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update user's edition (for desktop app integration)"""
+    import uuid
+    
+    # Convert user_id string to UUID
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    
+    # Verify user can update this (own profile or admin)
+    if str(current_user.id) != user_id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    edition = data.get("edition")
+    valid_editions = ["monitor", "parental", "enterprise", "custom"]
+    
+    if edition not in valid_editions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid edition. Must be one of: {', '.join(valid_editions)}"
+        )
+    
+    user = db.query(User).filter(User.id == user_uuid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.edition = edition
+    db.commit()
+    
+    return {"success": True}
+
