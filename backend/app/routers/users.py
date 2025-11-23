@@ -113,7 +113,7 @@ async def get_license_status(
         raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     # Verify user can access this (own profile or admin)
-    if str(current_user.id) != user_id and not current_user.is_admin:
+    if str(current_user.id) != str(user_id) and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Access denied")
     
     user = db.query(User).filter(User.id == user_uuid).first()
@@ -156,7 +156,7 @@ async def check_license(
         return {"success": False, "valid": False, "reason": "Invalid user ID format"}
     
     # Verify user can access this
-    if str(current_user.id) != user_id and not current_user.is_admin:
+    if str(current_user.id) != str(user_id) and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Access denied")
     
     user = db.query(User).filter(User.id == user_uuid).first()
@@ -201,7 +201,7 @@ async def update_edition(
         raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     # Verify user can update this (own profile or admin)
-    if str(current_user.id) != user_id and not current_user.is_admin:
+    if str(current_user.id) != str(user_id) and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Access denied")
     
     edition = data.get("edition")
